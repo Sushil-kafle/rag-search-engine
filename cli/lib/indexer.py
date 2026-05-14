@@ -1,3 +1,4 @@
+import math
 import string
 from nltk.stem import PorterStemmer
 import pickle
@@ -14,41 +15,58 @@ STOP_WORDS_PATH = PROJECT_ROOT / "data" / "stopwords.txt"
 
 class InvertedIndex:
     def __init__(self):
-        self.index: dict = {}
+        self.index: dict = defaultdict(set)
         self.docmap: dict = {}
         self.term_frequencies: dict = defaultdict(Counter)
 
     def __add_document(self, doc_id, text):
 
-        # remove punctiation
-        punc = string.punctuation
-        text = text.translate(str.maketrans("", "", punc))
-
-        # make lowercase
-
-        text = text.lower()
-
-        # tokenize
-        tokenized_text = text.split()
-
-        # remove stop words and stem
-        stemmer = PorterStemmer()
-        stop_words = load_stop_words(STOP_WORDS_PATH)
-        filtered_tokens = [
-            stemmer.stem(token) for token in tokenized_text if token not in stop_words
-        ]
+        tokens = self.__preprocess(text)
 
         # make index
-        for token in filtered_tokens:
-            if token not in self.index:
-                self.index[token] = []
-
-            self.index[token].append(doc_id)
-
+        for token in tokens:
+            self.index[token].add(doc_id)
             self.term_frequencies[doc_id][token] += 1
 
-    def get_documents(self, term):
-        term = term.lower()
+    def __preprocess(self, text):
+        punc = string.punctuation
+        text = text.translate(str.maketrans("", "", punc))
+        text = text.lower()
+
+        tokens = text.split()
+
+        stop_words = load_stop_words(STOP_WORDS_PATH)
+        stemmer = PorterStemmer()
+
+        return [stemmer.stem(token) for token in tokens if token not in stop_words]
+
+    def get_tf(self, doc_id, term):
+
+        tokens = self.__preprocess(term)
+
+        if len(tokens) != 1:
+            raise ValueError("Term must be a single word")
+
+        term = tokens[0]
+
+        return self.term_frequencies.get(doc_id, {}).get(term, 0)
+
+    def get_idf(self, term):
+        tokens = self.__preprocess(term)
+
+        if len(tokens) != 1:
+            raise ValueError("Term must be a single word")
+
+        term = tokens[0]
+
+        return math.log((len(self.docmap) + 1) / (1 + len(self.get_documents(term))))
+
+    def get_documents(self, term: str) -> list:
+
+        tokens = self.__preprocess(term)
+        if len(tokens) != 1:
+            raise ValueError("Term must be a single word")
+        term = tokens[0]
 
         return sorted(self.index.get(term, []))
 

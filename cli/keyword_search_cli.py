@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import math
 
 
 from lib.indexer import InvertedIndex
@@ -19,6 +20,17 @@ def main() -> None:
     search_parser.add_argument("query", type=str, help="Search query")
 
     subparsers.add_parser("build", help="Build and save index")
+
+    tf_parser = subparsers.add_parser("tf", help="Get term frequency")
+    tf_parser.add_argument("doc_id", type=int, help="Document ID")
+    tf_parser.add_argument("term", type=str, help="Term")
+
+    idf_parser = subparsers.add_parser("idf", help="Get inverse document frequency")
+    idf_parser.add_argument("term", type=str, help="Term")
+
+    tf_idf_parser = subparsers.add_parser("tfidf", help="Get TF-IDF score")
+    tf_idf_parser.add_argument("doc_id", type=int, help="Document ID")
+    tf_idf_parser.add_argument("term", type=str, help="Term")
 
     args = parser.parse_args()
 
@@ -46,6 +58,39 @@ def main() -> None:
 
             invIdx.build(movies=movies)
             invIdx.save(path=CACHE_DIR)
+            pass
+
+        case "tf":
+            doc_id = args.doc_id
+            term = args.term
+
+            invIdx = InvertedIndex()
+            invIdx.load(path=CACHE_DIR)
+
+            tf = invIdx.get_tf(doc_id=doc_id, term=term)
+            if tf == 0:
+                print("0")
+            else:
+                print(f"Term Frequency of '{term}' in document {doc_id}: {tf}")
+
+        case "idf":
+            term = args.term
+            invIdx = InvertedIndex()
+            invIdx.load(path=CACHE_DIR)
+            idf = invIdx.get_idf(term=term)
+
+            print(f"Inverse Document Frequency of '{term}': {idf:.2f}")
+            pass
+
+        case "tfidf":
+            doc_id = args.doc_id
+            term = args.term
+            invIdx = InvertedIndex()
+            invIdx.load(path=CACHE_DIR)
+            tf = invIdx.get_tf(doc_id=doc_id, term=term)
+            idf = invIdx.get_idf(term=term)
+            tf_idf = tf * idf
+            print(f"TF-IDF score of '{term}' in document {doc_id}: {tf_idf:.2f}")
             pass
 
         case _:
